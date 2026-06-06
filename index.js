@@ -15,6 +15,7 @@ app.get("/", (req, res) => {
 // Download API
 app.get("/download", async (req, res) => {
     const url = req.query.url;
+    const quality = req.query.quality || "hd";
 
     if (!url) {
         return res.status(400).json({ error: "No URL provided" });
@@ -23,16 +24,55 @@ app.get("/download", async (req, res) => {
     try {
         // Get TikTok data
         const apiResponse = await axios.get("https://tikwm.com/api/", {
-            params: { url }
+            params: { url },
+            timeout: 10000
         });
 
-        const data = apiResponse.data.data;
+        const data = apiResponse.data?.data;
 
-        // Validate video sources
-        if (!data || (!data.hdplay && !data.play)) {
-            return res.status(500).json({ error: "Video not found" });
+        if (!data) {
+            return res.status(500).json({ error: "No video data found" });
         }
 
+        // Choose quality
+        let videoUrl;
+
+        if (quality === "sd") {
+            videoUrl = data.play;
+        } else if (quality === "wm") {
+            videoUrl = data.wmplay;
+        } else {
+            videoUrl = data.hdplay || data.play;
+        }
+
+        if (!videoUrl) {
+            return res.status(500).json({ error: "No video URL found" });
+        }
+
+        console.log("Quality:", quality);
+        console.log("Streaming URL:", videoUrl);
+
+        // Stream video
+        const response = await axios({
+            url: videoUrl,
+            method: "GET",
+            responseType: "stream",
+            timeout: 20000
+        });
+
+        res.setHeader("Content-Type", "video/mp4");
+
+        response.data.pipe(res);
+
+    } catch (err) {
+        console.log("ERROR:", err.message);
+
+        res.status(502).json({
+            error: "Failed to fetch video",
+            details: err.message
+        });
+    }
+});
         // Choose best quality available
         const videoUrl =
             data.hdplay ||
