@@ -34,7 +34,7 @@ app.get("/download", async (req, res) => {
             return res.status(500).json({ error: "No video data found" });
         }
 
-        // Choose quality
+        // Select quality
         let videoUrl;
 
         if (quality === "sd") {
@@ -61,6 +61,10 @@ app.get("/download", async (req, res) => {
         });
 
         res.setHeader("Content-Type", "video/mp4");
+        res.setHeader(
+            "Content-Disposition",
+            "attachment; filename=tiktok.mp4"
+        );
 
         response.data.pipe(res);
 
@@ -71,34 +75,6 @@ app.get("/download", async (req, res) => {
             error: "Failed to fetch video",
             details: err.message
         });
-    }
-});
-        // Choose best quality available
-        const videoUrl =
-            data.hdplay ||
-            data.play ||
-            data.wmplay;
-
-        console.log("Selected video URL:", videoUrl);
-
-        // Stream video to user
-        const videoStream = await axios({
-            url: videoUrl,
-            method: "GET",
-            responseType: "stream"
-        });
-
-        res.setHeader("Content-Type", "video/mp4");
-        res.setHeader(
-            "Content-Disposition",
-            "attachment; filename=tiktok.mp4"
-        );
-
-        videoStream.data.pipe(res);
-
-    } catch (err) {
-        console.log("Error:", err.message);
-        res.status(500).json({ error: "Server error" });
     }
 });
 
