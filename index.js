@@ -21,20 +21,27 @@ app.get("/download", async (req, res) => {
     }
 
     try {
-        // TikTok extractor API
+        // Get TikTok data
         const apiResponse = await axios.get("https://tikwm.com/api/", {
             params: { url }
         });
 
         const data = apiResponse.data.data;
 
-        if (!data || !data.play) {
+        // Validate video sources
+        if (!data || (!data.hdplay && !data.play)) {
             return res.status(500).json({ error: "Video not found" });
         }
 
-        const videoUrl = data.play;
+        // Choose best quality available
+        const videoUrl =
+            data.hdplay ||
+            data.play ||
+            data.wmplay;
 
-        // Stream video
+        console.log("Selected video URL:", videoUrl);
+
+        // Stream video to user
         const videoStream = await axios({
             url: videoUrl,
             method: "GET",
@@ -50,11 +57,14 @@ app.get("/download", async (req, res) => {
         videoStream.data.pipe(res);
 
     } catch (err) {
-        console.log(err.message);
+        console.log("Error:", err.message);
         res.status(500).json({ error: "Server error" });
     }
 });
 
-app.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
+// Use Railway/Render port
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log("Server running on port", PORT);
 });
