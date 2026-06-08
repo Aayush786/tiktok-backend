@@ -7,72 +7,60 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Test route
+// Health check
 app.get("/", (req, res) => {
-    res.send("Backend is running 🚀");
+    res.json({
+        status: "Backend running 🚀",
+        endpoints: {
+            download: "/download?url=VIDEO_URL"
+        }
+    });
 });
 
-// Download API
+// Main download API
 app.get("/download", async (req, res) => {
     const url = req.query.url;
-    const quality = req.query.quality || "hd";
 
     if (!url) {
-        return res.status(400).json({ error: "No URL provided" });
+        return res.status(400).json({
+            error: "Missing TikTok URL"
+        });
     }
 
     try {
-        // Get TikTok data
         const apiResponse = await axios.get("https://tikwm.com/api/", {
             params: { url },
-            timeout: 10000
+            timeout: 15000
         });
 
         const data = apiResponse.data?.data;
 
         if (!data) {
-            return res.status(500).json({ error: "No video data found" });
+            return res.status(500).json({
+                error: "Failed to fetch video data"
+            });
         }
 
-        // Select quality
-        let videoUrl;
+        // Return ALL qualities instead of streaming
+        return res.json({
+            status: "success",
+            title: data.title || null,
+            author: data.author?.nickname || null,
+            cover: data.cover || null,
 
-        if (quality === "sd") {
-            videoUrl = data.play;
-        } else if (quality === "wm") {
-            videoUrl = data.wmplay;
-        } else {
-            videoUrl = data.hdplay || data.play;
-        }
-
-        if (!videoUrl) {
-            return res.status(500).json({ error: "No video URL found" });
-        }
-
-        console.log("Quality:", quality);
-        console.log("Streaming URL:", videoUrl);
-
-        // Stream video
-        const response = await axios({
-            url: videoUrl,
-            method: "GET",
-            responseType: "stream",
-            timeout: 20000
+            video: {
+                hd: data.hdplay || data.play || null,
+                sd: data.play || null,
+                noWatermark: data.hdplay || data.play || null,
+                watermarked: data.wmplay || null
+            }
         });
-
-        res.setHeader("Content-Type", "video/mp4");
-        res.setHeader(
-            "Content-Disposition",
-            "attachment; filename=tiktok.mp4"
-        );
-
-        response.data.pipe(res);
 
     } catch (err) {
         console.log("ERROR:", err.message);
 
-        res.status(502).json({
-            error: "Failed to fetch video",
+        return res.status(502).json({
+            error: "Failed to process video",
             details: err.message
         });
     }
